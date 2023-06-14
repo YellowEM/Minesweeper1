@@ -125,6 +125,16 @@ class MineSweeper:
     #                         queue.append(next_button)
 
     def create_widgets(self):
+
+        menubar = tk.Menu(self.window)
+        self.window.config(menu=menubar)
+
+        settings_menu = tk.Menu(menubar, tearoff=0)
+        settings_menu.add_command(label='Играть')
+        settings_menu.add_command(label='Настройки')
+        settings_menu.add_command(label='Выход', command=self.window.destroy)
+        menubar.add_cascade(label='Файл', menu=settings_menu)
+
         count = 1
         for i in range(1, MineSweeper.ROW + 1):
             for j in range(1, MineSweeper.COLUMNS + 1):
