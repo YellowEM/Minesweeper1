@@ -1,6 +1,6 @@
 import tkinter as tk
 from random import shuffle
-from tkinter.messagebox import showinfo
+from tkinter.messagebox import showinfo, showerror
 
 colors = {
     0: 'white',
@@ -45,8 +45,21 @@ class MineSweeper:
             for j in range(MineSweeper.COLUMNS + 2):
                 btn = MyButton(MineSweeper.window, x=i, y=j, width=3, font='Calibri 15 bold')
                 btn.config(command=lambda button=btn: self.click(button))
+                btn.bind("<Button-3>", self.right_click)
                 temp.append(btn)
             self.buttons.append(temp)
+
+    def right_click(self, event):
+        if MineSweeper.IS_GAME_OVER:
+            return
+        cur_btn = event.widget
+        if cur_btn["state"] == "normal":
+            cur_btn["state"] = "disabled"
+            cur_btn["text"] = '🚩'
+            cur_btn["disabledforeground"] = 'red'
+        elif cur_btn["text"] == "🚩":
+            cur_btn["text"] = ''
+            cur_btn["state"] = "normal"
 
     def click(self, c_b: MyButton):  # апгрейд клика c_b = clicked button
 
@@ -84,45 +97,41 @@ class MineSweeper:
                         self.click(btn)
         c_b.config(state='disabled')
 
-    # def click(self, clicked_button: MyButton):  # клики на квадраты
-    #     if clicked_button.is_mine:
-    #         clicked_button.config(text='*', background='red', disabledforeground='black')
-    #         clicked_button.is_open = True
-    #     else:
-    #         color = colors.get(clicked_button.count_bomb, 'black')
-    #         if clicked_button.count_bomb:
-    #             clicked_button.config(text=clicked_button.count_bomb, disabledforeground=color)
-    #             clicked_button.is_open = True
-    #         else:
-    #             self.breadth_first_search(clicked_button)
-    #     clicked_button.config(state='disabled')
-    #     clicked_button.config(relief=tk.SUNKEN)
+    def create_settings_window(self):
+        win_settings = tk.Toplevel(self.window)
+        win_settings.wm_title('Настройки')
+        tk.Label(win_settings, text='Количество строк').grid(row=0, column=0)
+        row_entry = tk.Entry(win_settings)
+        row_entry.insert(0, MineSweeper.ROW)
+        row_entry.grid(row=0, column=1, padx=20, pady=20)
+        tk.Label(win_settings, text='Количество колонок').grid(row=1, column=0)
+        column_entry = tk.Entry(win_settings)
+        column_entry.insert(0, MineSweeper.COLUMNS)
+        column_entry.grid(row=1, column=1, padx=20, pady=20)
+        tk.Label(win_settings, text='Количество мин').grid(row=2, column=0)
+        mines_entry = tk.Entry(win_settings)
+        mines_entry.insert(0, MineSweeper.MINES)
+        mines_entry.grid(row=2, column=1, padx=20, pady=20)
+        save_btn = tk.Button(win_settings, text='Применить',
+                  command=lambda: self.change_settings(row_entry, column_entry, mines_entry))
+        save_btn.grid(row=3,column=0, columnspan=2, padx=10, pady=10)
+    def change_settings(self, row: tk.Entry, column: tk.Entry, mines: tk.Entry):
+        try:
+            int(row.get()), int(column.get()), int(mines.get())
+        except ValueError:
+            showerror('Ошибка', 'Вы ввели неправильное значение!')
+            return
+        MineSweeper.ROW = int(row.get())
+        MineSweeper.COLUMN = int(column.get())
+        MineSweeper.MINES = int(mines.get())
+        self.reload()
 
-    # def breadth_first_search(self, btn: MyButton):
-    #     queue = [btn]
-    #     while queue:
-    #
-    #         cur_btn = queue.pop()
-    #         color = colors.get(cur_btn.count_bomb, 'black')
-    #         if cur_btn.count_bomb:
-    #             cur_btn.config(text=cur_btn.count_bomb, disabledforeground=color)
-    #         else:
-    #             cur_btn.config(text='', disabledforeground='black')
-    #         cur_btn.is_open = True
-    #         cur_btn.config(state='disabled')
-    #         cur_btn.config(relief=tk.SUNKEN)
-    #
-    #         if cur_btn.count_bomb == 0:
-    #             x, y = cur_btn.x, cur_btn.y
-    #             for dx in [-1, 0, 1]:
-    #                 for dy in [-1, 0, 1]:
-    #                     if not abs(dx - dy) == 1:
-    #                         continue
-    #
-    #                     next_button = self.buttons[x + dx][y + dy]
-    #                     if next_button.is_open and 1 <= next_button.x <= MineSweeper.ROW and \
-    #                             1 <= next_button.x <= MineSweeper.COLUMNS and next_button not in queue:
-    #                         queue.append(next_button)
+    def reload(self):
+        [child.destroy() for child in self.window.winfo_children()]
+        self.__init__()
+        self.create_widgets()
+        MineSweeper.IS_FIRST_CLICK = True
+        MineSweeper.IS_GAME_OVER = False
 
     def create_widgets(self):
 
@@ -130,8 +139,8 @@ class MineSweeper:
         self.window.config(menu=menubar)
 
         settings_menu = tk.Menu(menubar, tearoff=0)
-        settings_menu.add_command(label='Играть')
-        settings_menu.add_command(label='Настройки')
+        settings_menu.add_command(label='Играть', command=self.reload)
+        settings_menu.add_command(label='Настройки', command=self.create_settings_window)
         settings_menu.add_command(label='Выход', command=self.window.destroy)
         menubar.add_cascade(label='Файл', menu=settings_menu)
 
@@ -140,8 +149,12 @@ class MineSweeper:
             for j in range(1, MineSweeper.COLUMNS + 1):
                 btn = self.buttons[i][j]
                 btn.number = count
-                btn.grid(row=i, column=j)
+                btn.grid(row=i, column=j, stick='NWES')
                 count += 1
+        for i in range(1, MineSweeper.ROW + 1):
+            tk.Grid.rowconfigure(self.window, i, weight=1)
+        for i in range(1, MineSweeper.COLUMNS + 1):
+            tk.Grid.columnconfigure(self.window, i, weight=1)
 
     def open_all_buttons(self):
         for i in range(MineSweeper.ROW + 2):
